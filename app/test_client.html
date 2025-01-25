@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mega Mind Support Platform</title>
+    <style>
+        #chat-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            font-family: Arial, sans-serif;
+        }
+
+        #chat-header {
+            background: #007bff;
+            color: white;
+            padding: 15px;
+            border-radius: 10px 10px 0 0;
+            cursor: pointer;
+        }
+
+        #messages {
+            height: 300px;
+            overflow-y: auto;
+            padding: 15px;
+            display: none;
+        }
+
+        .message {
+            margin: 5px 0;
+            padding: 8px 12px;
+            border-radius: 15px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .customer-message {
+            background: #007bff;
+            color: white;
+            margin-left: auto;
+        }
+
+        .support-message {
+            background: #f0f0f0;
+            margin-right: auto;
+        }
+
+        #chat-input-area {
+            padding: 15px;
+            border-top: 1px solid #eee;
+            display: none;
+        }
+
+        #messageInput {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            margin-bottom: 10px;
+        }
+
+        #start-chat {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .chat-closed #messages, 
+        .chat-closed #chat-input-area {
+            display: none;
+        }
+
+        .chat-open #messages,
+        .chat-open #chat-input-area {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-widget" class="chat-closed">
+        <div id="chat-header">
+            <h3 style="margin: 0">Need Help?</h3>
+            <div style="font-size: 12px; opacity: 0.8;">Session: <span id="session-id">Not Connected</span></div>
+        </div>
+        <div id="messages"></div>
+        <div id="chat-input-area">
+            <input type="text" id="messageInput" placeholder="Type your message...">
+        </div>
+    </div>
+
+    <script>
+let sessionId = null;
+let ws = null;
+const widget = document.getElementById('chat-widget');
+const header = document.getElementById('chat-header');
+const messagesDiv = document.getElementById('messages');
+const messageInput = document.getElementById('messageInput');
+
+header.onclick = function() {
+    if (widget.classList.contains('chat-closed')) {
+        openChat();
+    } else {
+        closeChat();
+    }
+};
+
+function openChat() {
+    widget.classList.remove('chat-closed');
+    widget.classList.add('chat-open');
+    if (!ws) {
+        connectWebSocket();
+    }
+}
+
+function closeChat() {
+    widget.classList.remove('chat-open');
+    widget.classList.add('chat-closed');
+}
+
+function connectWebSocket() {
+    // Generate a unique session ID for each chat session
+    sessionId = Math.random().toString(36).substring(2, 15);
+    document.getElementById('session-id').textContent = sessionId;
+    
+    console.log(`Connecting to session: ${sessionId}`); // Debug log
+    ws = new WebSocket(`ws://localhost:8000/ws/${sessionId}`);
+
+    ws.onopen = function() {
+        console.log(`Connected to session: ${sessionId}`);
+    };
+
+    ws.onmessage = function(event) {
+        console.log(`[Session ${sessionId}] Received: ${event.data}`);
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message support-message';
+        messageDiv.textContent = event.data;
+        messagesDiv.appendChild(messageDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    };
+
+    ws.onclose = function() {
+        console.log(`Disconnected from session: ${sessionId}`);
+    };
+}
+
+function sendMessage() {
+    if (messageInput.value && ws) {
+        console.log(`[Session ${sessionId}] Sending: ${messageInput.value}`);
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message customer-message';
+        messageDiv.textContent = messageInput.value;
+        messagesDiv.appendChild(messageDiv);
+        
+        ws.send(messageInput.value);
+        messageInput.value = '';
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+}
+
+messageInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
+    </script>
+</body>
+</html>
